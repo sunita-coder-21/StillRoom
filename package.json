@@ -1,0 +1,47 @@
+{
+  "name": "stillroom",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["frontend"],
+  "engines": { "node": ">=22.0.0" },
+  "scripts": {
+    "postinstall": "node scripts/patch-runtime.cjs",
+    "compile": "node scripts/compile-contract.mjs && node scripts/patch-runtime.cjs && npm run copy:managed",
+    "copy:managed": "node -e \"const fs = require('fs'); fs.rmSync('frontend/src/managed/contract', {recursive:true, force:true}); fs.rmSync('frontend/public/managed', {recursive:true, force:true}); fs.cpSync('contracts/managed/stillroom/contract', 'frontend/src/managed/contract', {recursive:true}); fs.cpSync('contracts/managed/stillroom', 'frontend/public/managed', {recursive:true})\"",
+    "test": "cross-env NODE_OPTIONS='--experimental-vm-modules' vitest run",
+    "test:local": "cross-env MIDNIGHT_NETWORK=local npm run test",
+    "test:preview": "cross-env MIDNIGHT_NETWORK=preview npm run test",
+    "test:preprod": "cross-env MIDNIGHT_NETWORK=preprod npm run test",
+    "test:frontend": "vitest run --config frontend/vitest.config.ts",
+    "env:up": "docker compose up -d --wait",
+    "env:down": "docker compose down",
+    "build": "npm run build -w stillroom-frontend && node --input-type=module -e \"import fs from 'node:fs'; fs.cpSync('frontend/dist', 'dist', {recursive:true});\"",
+    "check": "npm run test && npm run test:frontend && npm run build"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
+    "@midnight-ntwrk/midnight-js-contracts": "4.1.1",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
+    "@midnight-ntwrk/testkit-js": "4.1.1",
+    "@midnight-ntwrk/wallet-sdk": "1.0.0",
+    "pino": "9.0.0",
+    "pino-pretty": "13.0.0",
+    "rxjs": "7.8.2",
+    "ws": "8.18.0"
+  },
+  "overrides": { "@midnight-ntwrk/onchain-runtime-v3": "3.1.1", "react": "19.0.0", "react-dom": "19.0.0", "scheduler": "0.27.0" },
+  "devDependencies": {
+    "@types/node": "22.19.0",
+    "@types/ws": "8.5.9",
+    "cross-env": "10.1.0",
+    "typescript": "5.7.3",
+    "vite": "6.0.0",
+    "vitest": "4.1.0"
+  },
+  "packageManager": "npm@10"
+}
