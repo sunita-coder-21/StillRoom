@@ -1,0 +1,148 @@
+pragma language_version >=0.22.0;
+
+import CompactStandardLibrary;
+
+// Public screening policy. These values, commitments, and check-in activity are public.
+export ledger entry_threshold: Uint<64>;
+export ledger access_pass_id: Bytes<32>;
+export ledger entry_deadline: Uint<64>;
+export ledger curator_id: Bytes<32>;
+export ledger steward: Bytes<32>;
+export ledger gate_open: Boolean;
+export ledger total_entries: Counter;
+export ledger screening_entries: Counter;
+export ledger entry_limit: Uint<32>;
+export ledger credentials: Set<Bytes<32>>;
+export ledger used_nullifiers: Set<Bytes<32>>;
+export ledger entry_log: Map<Bytes<32>, Bytes<32>>;
+export sealed ledger edition: Bytes<32>;
+
+// Non-exported ledger is still public, not private storage. Retain screening history
+// forever and bind management transcripts to a monotonically increasing revision.
+ledger screening_ids: Set<Bytes<32>>;
+ledger management_revision: Uint<64>;
+
+// Private witnesses are untrusted until the circuit verifies their credential binding.
+witness get_eligibility_score(): Uint<64>;
+witness get_passphrase(): Bytes<32>;
+witness steward_secret(): Bytes<32>;
+
+struct Credential {
+    domain: Bytes<32>;
+    score: Uint<64>;
+    secret: Bytes<32>;
+    screening: Bytes<32>;
+}
+
+constructor(
+    threshold: Uint<64>,
+    pass: Bytes<32>,
+    deadline: Uint<64>,
+    curator: Bytes<32>,
+    steward_hash: Bytes<32>,
+    limit: Uint<32>
+) {
+    assert(limit > 0, "Screening capacity must be positive");
+    assert(blockTimeLt(disclose(deadline)), "Screening deadline must be in the future");
+    entry_threshold = disclose(threshold);
+    access_pass_id = disclose(pass);
+    entry_deadline = disclose(deadline);
+    curator_id = disclose(curator);
+    steward = disclose(steward_hash);
+    gate_open = true;
+    entry_limit = disclose(limit);
+    screening_ids.insert(disclose(pass));
+    management_revision = 0;
+    edition = pad(32, "Stillroom:v1.0");
+}
+
+// The score and high-entropy credential secret remain private. Set membership
+// intentionally reveals the credential commitment, so check-in is pseudonymous.
+export circuit check_in(): [] {
+    assert(gate_open, "Admissions are paused");
+    assert(blockTimeLt(entry_deadline), "Screening deadline has passed");
+    assert(screening_entries < entry_limit, "Screening capacity reached");
+
+    const score = get_eligibility_score();
+    const secret = get_passphrase();
+    const commitment = credential_commitment(score, secret, access_pass_id);
+    assert(credentials.member(disclose(commitment)), "Credential is not registered for this screening");
+    assert(score >= entry_threshold, "Eligibility threshold not met");
+
+    const nullifier = make_entry_nullifier(secret, access_pass_id);
+    assert(!used_nullifiers.member(disclose(nullifier)), "Credential has already checked in");
+    used_nullifiers.insert(disclose(nullifier));
+    entry_log.insert(disclose(nullifier), access_pass_id);
+    screening_entries.increment(1);
+    total_entries.increment(1);
+}
+
+// All policy changes require knowledge of the private steward secret.
+export circuit configure_screening(
+    new_threshold: Uint<64>,
+    new_pass: Bytes<32>,
+    new_deadline: Uint<64>,
+    new_curator: Bytes<32>,
+    new_limit: Uint<32>
+): [] {
+    authorize_steward();
+    assert(new_limit > 0, "Screening capacity must be positive");
+    assert(blockTimeLt(disclose(new_deadline)), "Screening deadline must be in the future");
+    assert(!screening_ids.member(disclose(new_pass)), "Screening identifier has already been used");
+    screening_ids.insert(disclose(new_pass));
+    entry_threshold = disclose(new_threshold);
+    access_pass_id = disclose(new_pass);
+    entry_deadline = disclose(new_deadline);
+    curator_id = disclose(new_curator);
+    entry_limit = disclose(new_limit);
+    screening_entries.resetToDefault();
+    gate_open = true;
+}
+
+export circuit pause_admissions(): [] {
+    authorize_steward();
+    assert(gate_open, "Admissions are already paused");
+    gate_open = false;
+}
+
+export circuit resume_admissions(): [] {
+    authorize_steward();
+    assert(!gate_open, "Admissions are already open");
+    assert(blockTimeLt(entry_deadline), "Screening deadline has passed");
+    gate_open = true;
+}
+
+// The steward must validate eligibility off-chain before issuing a commitment.
+// This circuit attests the supplied commitment; it cannot verify real-world facts.
+export circuit issue_credential(commitment: Bytes<32>): [] {
+    authorize_steward();
+    assert(!credentials.member(disclose(commitment)), "Credential is already registered");
+    credentials.insert(disclose(commitment));
+}
+
+circuit authorize_steward(): [] {
+    assert(steward == steward_public_key(steward_secret()), "Not authorized as steward");
+    assert(management_revision < 18446744073709551615, "Management revision exhausted");
+    management_revision = (management_revision + 1) as Uint<64>;
+}
+
+export pure circuit steward_public_key(sk: Bytes<32>): Bytes<32> {
+    return persistentHash<Vector<2, Bytes<32>>>([pad(32, "Stillroom:steward:v1"), sk]);
+}
+
+export pure circuit make_entry_nullifier(secret: Bytes<32>, pass: Bytes<32>): Bytes<32> {
+    return persistentHash<Vector<3, Bytes<32>>>([
+        pad(32, "Stillroom:nullifier:v1"),
+        secret,
+        pass
+    ]);
+}
+
+export pure circuit credential_commitment(score: Uint<64>, secret: Bytes<32>, pass: Bytes<32>): Bytes<32> {
+    return persistentHash<Credential>(Credential {
+        domain: pad(32, "Stillroom:credential:v1"),
+        score: score,
+        secret: secret,
+        screening: pass
+    });
+}
