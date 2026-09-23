@@ -1,0 +1,20 @@
+{
+  "contract": "Stillroom",
+  "compilerVersion": "0.31.1",
+  "runtimeVersion": "0.16.0",
+  "source": "contracts/stillroom.compact",
+  "sourceSha256": "f5840c3f4b17d0e1dfaff043af269e90fb3c69ef8e61e241f075670c10078edf",
+  "fullKeyGeneration": true,
+  "keys": {
+    "keys/check_in.prover": "8c275e456223047cf1cc3b5bbca9814c76a1b808cc30e37d3c7187ff5e805276",
+    "keys/check_in.verifier": "20afba9338f3145d43893a5b49832e50f456bd076406ca5b29666f37b8a4ae6f",
+    "keys/configure_screening.prover": "4c9c74473b0bf669948028bae3e31e52fca01e0d74a8853c48a1b77bf7bac924",
+    "keys/configure_screening.verifier": "7c9883617156c9ffd01f48c84a8f3d99efae2208bdb6f485912fa9090b4ff1df",
+    "keys/pause_admissions.prover": "56b18c0d66b5e59561a9cbda2f7518d582a5e127385a3e10602c2abde3b12811",
+    "keys/pause_admissions.verifier": "629503c1778a0f5a1758eb5b70d200404a1848df84ef6c034d7350d2b1521be6",
+    "keys/resume_admissions.prover": "daa6ac70fd83bd2aa9a2b1133dcd07acdb232cca43c98939c8635e6dc15da14d",
+    "keys/resume_admissions.verifier": "071d97cbc0bfdfe43b856ed045237d012fae9ab4eaac3edebaf447e26e96a613",
+    "keys/issue_credential.prover": "b242fb5d5fcf538f73c032f2a5870eef9a2efc4b59a08d8da42b5283822d7cda",
+    "keys/issue_credential.verifier": "a09b2e3d8e9cd58533ea9e3229a5063ec5500b58a558b433c19d7fe57f8ad03f"
+  }
+}
