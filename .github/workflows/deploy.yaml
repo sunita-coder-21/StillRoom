@@ -1,0 +1,33 @@
+name: Stillroom release build
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  release-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install Compact compiler 0.31.1
+        run: |
+          mkdir -p "$HOME/.compact/bin"
+          curl -L --fail -o /tmp/compactc.zip https://github.com/midnightntwrk/compact/releases/download/compactc-v0.31.1/compactc_v0.31.1_x86_64-unknown-linux-musl.zip
+          unzip -o /tmp/compactc.zip -d "$HOME/.compact/bin"
+          echo "$HOME/.compact/bin" >> "$GITHUB_PATH"
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+      - name: Compile and test
+        run: npm run compile && npm test && npm run test:frontend
+      - name: Build deployment artifact
+        run: npm run build
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stillroom-frontend
+          path: dist
